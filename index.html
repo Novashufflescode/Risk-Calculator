@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Futures Risk Calculator</title>
+<meta name="description" content="Position size calculator for futures: pick an instrument, risk and stop, get contracts, stop and take profit.">
+<meta name="theme-color" content="#0a0b14">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0b14'/><path d='M6 22 L13 14 L18 18 L26 9' stroke='%23ff7ac6' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0a0b14;
+    --bg-deep:#10152a;
+    --bg-raised:#1a2340;
+
+    --blossom-light:#ff9ad4;
+    --blossom:#ff7ac6;
+    --blossom-deep:#d94f9e;
+    --blossom-shadow:#b23874;
+
+    --mist-light:#8fb0e0;
+    --mist:#5b7fb5;
+    --mist-deep:#3a5788;
+
+    --moonlight:#eef2ff;
+    --neon-purple:#8b5cf6;
+    --lantern:#f2a541;
+    --go:#4fd1c5;
+
+    --text-primary:#e8ecf7;
+    --text-secondary:#a8b0cc;
+    --text-muted:#6b7394;
+
+    --gradient-sky: linear-gradient(180deg, #0a0b14 0%, #1a2340 35%, #3a5788 70%, #b23874 100%);
+    --gradient-accent: linear-gradient(120deg, #ff7ac6 0%, #8b5cf6 50%, #5b7fb5 100%);
+
+    --font-display:'Rajdhani', sans-serif;
+    --font-body:'Inter', sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(900px 500px at 10% -10%, rgba(255,122,198,0.14), transparent 60%),
+      radial-gradient(900px 600px at 100% 0%, rgba(91,127,181,0.22), transparent 60%),
+      var(--bg-void);
+    background-attachment:fixed;
+    color:var(--text-primary);
+    font-family:var(--font-body);
+    line-height:1.5;
+  }
+
+  /* ---------- HEADER ---------- */
+  header{
+    position:relative;
+    overflow:hidden;
+    background:var(--gradient-sky);
+    padding:40px 16px 0;
+    border-bottom:1px solid var(--blossom-shadow);
+  }
+  header::after{
+    content:""; position:absolute; inset:0;
+    background:radial-gradient(circle at 22% 18%, rgba(238,242,255,0.22), transparent 38%);
+    pointer-events:none;
+  }
+  .head-inner{ max-width:1200px; margin:0 auto; position:relative; z-index:1; display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap; }
+  .eyebrow{
+    font-family:var(--font-display); text-transform:uppercase; letter-spacing:0.2em;
+    font-size:12px; font-weight:600; color:var(--blossom-light); margin-bottom:6px;
+  }
+  header .eyebrow{ color:var(--moonlight); opacity:0.85; }
+  h1{
+    font-family:var(--font-display); font-weight:700; margin:0; font-size:clamp(34px,6vw,54px); line-height:1.05; letter-spacing:0.02em;
+    color:var(--moonlight);
+    text-shadow:0 0 24px rgba(255,122,198,0.45);
+  }
+  h1 span{ background:var(--gradient-accent); -webkit-background-clip:text; background-clip:text; color:transparent; text-shadow:none; }
+  .tagline{ color:var(--text-secondary); margin:8px 0 0; max-width:520px; font-size:15px; }
+  .skyline{ display:block; width:100%; height:70px; margin-top:24px; position:relative; z-index:1; }
+
+  .lang{ display:flex; border:1px solid var(--mist-deep); border-radius:8px; overflow:hidden; background:rgba(10,11,20,0.5); }
+  .lang button{
+    font-family:var(--font-display); font-weight:600; letter-spacing:0.08em; font-size:13px;
+    background:none; border:none; color:var(--text-secondary); padding:8px 14px; cursor:pointer;
+  }
+  .lang button.on{ background:var(--blossom); color:var(--bg-void); }
+
+  /* ---------- LAYOUT ---------- */
+  main{ max-width:1200px; margin:0 auto; padding:28px 16px 48px; }
+  .grid{ display:grid; grid-template-columns:minmax(0,1.15fr) minmax(0,1fr); gap:24px; align-items:start; }
+  @media (max-width:900px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{
+    background:rgba(16,21,42,0.88);
+    border:1px solid var(--mist-deep);
+    border-radius:14px;
+    padding:24px;
+  }
+  .card h2{ font-family:var(--font-display); font-size:22px; color:var(--moonlight); margin:0 0 4px; font-weight:700; }
+  .card .sub{ color:var(--text-muted); font-size:13px; margin:0 0 20px; }
+
+  /* ---------- FORM ---------- */
+  .step{ display:flex; gap:12px; align-items:center; margin:22px 0 12px; }
+  .step:first-of-type{ margin-top:0; }
+  .step-num{
+    width:26px; height:26px; flex:0 0 26px; border-radius:50%;
+    display:grid; place-items:center;
+    font-family:var(--font-display); font-weight:700; font-size:14px;
+    background:var(--gradient-accent); color:var(--bg-void);
+  }
+  .step-title{ font-family:var(--font-display); font-weight:700; font-size:17px; letter-spacing:0.04em; text-transform:uppercase; color:var(--text-primary); }
+
+  .row{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:520px){ .row{ grid-template-columns:1fr; } }
+  .field{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  label, .label{
+    font-family:var(--font-display); font-weight:600; font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--mist-light);
+  }
+  select, input{
+    width:100%;
+    font-family:var(--font-body); font-size:16px; font-weight:500;
+    color:var(--text-primary);
+    background:var(--bg-raised);
+    border:1px solid var(--mist-deep);
+    border-radius:8px;
+    padding:12px 14px;
+    outline:none;
+    transition:border-color .2s ease, box-shadow .2s ease;
+  }
+  select{
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' stroke='%23ff9ad4' stroke-width='2' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 14px center;
+    padding-right:38px; cursor:pointer;
+  }
+  select option, select optgroup{ background:var(--bg-deep); color:var(--text-primary); }
+  select:focus, input:focus{ border-color:var(--blossom); box-shadow:0 0 0 3px rgba(255,122,198,0.18); }
+  input::placeholder{ color:var(--text-muted); }
+  .hidden{ display:none !important; }
+  .hint{ font-size:12.5px; color:var(--text-muted); }
+  .hint b{ color:var(--text-secondary); font-weight:600; }
+  .hint.warn{ color:var(--lantern); }
+
+  .combo{ display:flex; gap:8px; }
+  .combo input{ flex:1 1 auto; }
+  .combo select{ flex:0 0 110px; }
+
+  .seg{ display:flex; border:1px solid var(--mist-deep); border-radius:8px; overflow:hidden; }
+  .seg button{
+    flex:1; font-family:var(--font-display); font-weight:700; font-size:15px; letter-spacing:0.08em; text-transform:uppercase;
+    padding:11px 10px; background:var(--bg-raised); color:var(--text-secondary); border:none; cursor:pointer; transition:all .2s ease;
+  }
+  .seg button + button{ border-left:1px solid var(--mist-deep); }
+  .seg button.on[data-dir="long"]{ background:rgba(79,209,197,0.18); color:var(--go); }
+  .seg button.on[data-dir="short"]{ background:rgba(255,122,198,0.2); color:var(--blossom-light); }
+
+  .inst-meta{ display:flex; flex-wrap:wrap; gap:8px; margin-top:4px; }
+  .pill{
+    font-size:12px; color:var(--text-secondary); background:rgba(58,87,136,0.25);
+    border:1px solid rgba(91,127,181,0.35); border-radius:999px; padding:3px 10px;
+  }
+  .pill b{ color:var(--moonlight); font-weight:600; }
+
+  /* ---------- RESULTS ---------- */
+  .results{ position:sticky; top:16px; border-color:var(--blossom-deep); box-shadow:0 10px 50px rgba(178,56,116,0.22); }
+  @media (max-width:900px){ .results{ position:static; } }
+  .hero-num{
+    text-align:center; padding:18px 12px 20px; margin-bottom:18px; border-radius:12px;
+    background:linear-gradient(160deg, rgba(255,122,198,0.12), rgba(91,127,181,0.12));
+    border:1px solid rgba(255,122,198,0.25);
+  }
+  .hero-num .label{ color:var(--blossom-light); }
+  .big{
+    font-family:var(--font-display); font-weight:700; font-size:88px; line-height:1; margin:6px 0 2px;
+    background:var(--gradient-accent); -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(255,122,198,0.35));
+  }
+  .big-sym{ font-family:var(--font-display); font-weight:600; font-size:20px; letter-spacing:0.12em; color:var(--moonlight); }
+  .alt{ font-size:13px; color:var(--text-secondary); margin-top:10px; }
+  .alt b{ color:var(--mist-light); }
+
+  .stats{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .stat{ background:var(--bg-raised); border:1px solid rgba(58,87,136,0.6); border-radius:10px; padding:12px 14px; min-width:0; }
+  .stat .label{ font-size:11px; color:var(--text-muted); }
+  .stat .v{ font-family:var(--font-display); font-weight:700; font-size:26px; line-height:1.15; margin-top:2px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }
+  .stat .s{ font-size:12px; color:var(--text-secondary); }
+  .stat.loss .v{ color:var(--blossom-light); }
+  .stat.win .v{ color:var(--go); }
+  .stat.price{ border-style:dashed; }
+
+  .alert{
+    margin-top:14px; padding:12px 14px; border-radius:10px; font-size:13.5px;
+    border:1px solid rgba(242,165,65,0.45); background:rgba(242,165,65,0.1); color:#f8c983;
+  }
+  .alert.bad{ border-color:rgba(255,122,198,0.5); background:rgba(217,79,158,0.12); color:var(--blossom-light); }
+
+  .actions{ display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+  .btn{
+    font-family:var(--font-display); font-weight:700; letter-spacing:0.06em; text-transform:uppercase; font-size:14px;
+    padding:12px 20px; border-radius:8px; border:1px solid var(--mist-deep); background:var(--bg-raised); color:var(--text-primary);
+    cursor:pointer; transition:all .25s ease; flex:1 1 auto;
+  }
+  .btn:hover{ border-color:var(--blossom); box-shadow:0 0 24px rgba(255,122,198,0.35); color:var(--blossom-light); }
+  .btn.primary{ background:var(--gradient-accent); border:none; color:var(--bg-void); }
+  .btn.primary:hover{ color:var(--bg-void); box-shadow:0 0 28px rgba(139,92,246,0.5); }
+
+  /* ---------- REFERENCE TABLE ---------- */
+  .ref{ margin-top:24px; }
+  .ref-head{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+  .legend{ display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--text-secondary); }
+  .legend i{ display:inline-block; width:12px; height:12px; border-radius:3px; margin-right:6px; vertical-align:-1px; }
+  .table-wrap{ overflow-x:auto; border-radius:10px; border:1px solid var(--mist-deep); }
+  table{ border-collapse:collapse; width:100%; min-width:900px; font-variant-numeric:tabular-nums; font-size:13.5px; }
+  th, td{ padding:9px 8px; text-align:center; white-space:nowrap; }
+  thead th{
+    font-family:var(--font-display); font-weight:700; letter-spacing:0.06em; font-size:14px;
+    color:var(--bg-void); background:linear-gradient(90deg, var(--mist) 0%, var(--mist-light) 100%);
+    position:sticky; top:0;
+  }
+  thead th:first-child{ background:var(--bg-void); color:var(--blossom-light); position:sticky; left:0; z-index:2; }
+  tbody th{
+    font-family:var(--font-display); font-weight:700; font-size:14px; color:var(--mist-light);
+    background:var(--bg-deep); position:sticky; left:0; z-index:1; border-right:1px solid var(--mist-deep);
+  }
+  tbody tr{ border-top:1px solid rgba(58,87,136,0.35); }
+  td{ color:var(--text-primary); }
+  td.ok{ background:rgba(79,209,197,0.07); }
+  td.over{ color:var(--text-muted); }
+  tr.sel th{ color:var(--blossom-light); }
+  tr.sel td{ background:rgba(255,122,198,0.08); }
+  td.colsel{ box-shadow:inset 1px 0 0 rgba(255,122,198,0.35), inset -1px 0 0 rgba(255,122,198,0.35); }
+  thead th.colsel{ background:var(--blossom); }
+  td.pick{ background:var(--blossom) !important; color:var(--bg-void); font-weight:700; border-radius:4px; box-shadow:0 0 18px rgba(255,122,198,0.6); }
+  .foot-note{ font-size:12px; color:var(--text-muted); margin-top:12px; font-style:italic; }
+
+  footer{ text-align:center; color:var(--text-muted); font-size:12px; padding:24px 16px 40px; }
+
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px); opacity:0;
+    background:var(--bg-raised); border:1px solid var(--blossom); color:var(--moonlight);
+    padding:10px 18px; border-radius:8px; font-size:14px; transition:all .25s ease; pointer-events:none; z-index:10;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-inner">
+    <div>
+      <div class="eyebrow" data-i18n="eyebrow">Futures Position Sizing</div>
+      <h1><span data-i18n="title1">Risk</span> <span data-i18n="title2" style="background:none;color:var(--moonlight);-webkit-background-clip:initial;background-clip:initial;">Calculator</span></h1>
+      <p class="tagline" data-i18n="tagline">Pick your instrument, your risk and your stop. Get your contracts, stop price and take profit in seconds.</p>
+    </div>
+    <div class="lang" role="group" aria-label="Language">
+      <button type="button" data-lang="en" class="on">EN</button>
+      <button type="button" data-lang="es">ES</button>
+    </div>
+  </div>
+  <svg class="skyline" viewBox="0 0 1200 70" preserveAspectRatio="none" aria-hidden="true">
+    <defs>
+      <linearGradient id="bld" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#10152a"/><stop offset="1" stop-color="#0a0b14"/>
+      </linearGradient>
+    </defs>
+    <path fill="url(#bld)" d="M0 70 V44 H40 V30 H70 V50 H100 V20 H118 V8 H124 V20 H140 V46 H180 V34 H220 V52 H250 V26 H290 V40 H320 V14 H336 V4 H340 V14 H356 V48 H400 V36 H440 V54 H470 V22 H510 V44 H550 V30 H580 V50 H620 V18 H640 V10 H660 V18 H680 V42 H720 V32 H760 V52 H790 V24 H830 V46 H860 V12 H874 V2 H878 V12 H892 V40 H930 V28 H970 V50 H1000 V20 H1040 V44 H1080 V34 H1110 V48 H1150 V26 H1200 V70 Z"/>
+    <g fill="#ff9ad4" opacity="0.7">
+      <rect x="106" y="28" width="3" height="3"/><rect x="112" y="36" width="3" height="3"/><rect x="330" y="22" width="3" height="3"/><rect x="342" y="30" width="3" height="3"/>
+      <rect x="480" y="30" width="3" height="3"/><rect x="494" y="38" width="3" height="3"/><rect x="646" y="26" width="3" height="3"/><rect x="866" y="20" width="3" height="3"/>
+      <rect x="880" y="28" width="3" height="3"/><rect x="1010" y="30" width="3" height="3"/><rect x="1160" y="34" width="3" height="3"/>
+    </g>
+    <g fill="#8fb0e0" opacity="0.6">
+      <rect x="260" y="34" width="3" height="3"/><rect x="274" y="42" width="3" height="3"/><rect x="630" y="34" width="3" height="3"/><rect x="800" y="32" width="3" height="3"/>
+      <rect x="814" y="40" width="3" height="3"/><rect x="1024" y="38" width="3" height="3"/><rect x="200" y="42" width="3" height="3"/><rect x="940" y="36" width="3" height="3"/>
+    </g>
+  </svg>
+</header>
+
+<main>
+  <div class="grid">
+    <!-- INPUTS -->
+    <section class="card" aria-labelledby="setup-h">
+      <h2 id="setup-h" data-i18n="setup">Trade Setup</h2>
+      <p class="sub" data-i18n="setupSub">Everything updates live. Your last setup is saved on this device.</p>
+
+      <div class="step"><div class="step-num">1</div><div class="step-title" data-i18n="s1">Instrument</div></div>
+      <div class="field">
+        <label for="inst" data-i18n="futures">Futures contract</label>
+        <select id="inst"></select>
+        <div class="inst-meta" id="instMeta"></div>
+      </div>
+
+      <div class="step"><div class="step-num">2</div><div class="step-title" data-i18n="s2">Account &amp; Risk</div></div>
+      <div class="row">
+        <div class="field">
+          <label for="acct" data-i18n="acct">Account size</label>
+          <select id="acct"></select>
+        </div>
+        <div class="field">
+          <label for="risk" data-i18n="risk">Max risk per trade</label>
+          <select id="risk"></select>
+          <input id="riskCustom" class="hidden" type="number" inputmode="decimal" min="1" step="any" placeholder="$ amount">
+        </div>
+      </div>
+      <div class="hint" id="riskHint" style="margin-top:8px;"></div>
+
+      <div class="step"><div class="step-num">3</div><div class="step-title" data-i18n="s3">Stop Loss</div></div>
+      <div class="row">
+        <div class="field">
+          <label for="stop" data-i18n="stopDist">Stop distance</label>
+          <select id="stop"></select>
+          <div class="combo hidden" id="stopCustomWrap">
+            <input id="stopCustom" type="number" inputmode="decimal" min="0" step="any" placeholder="20">
+            <select id="stopUnit" aria-label="Stop unit">
+              <option value="pts" data-i18n="points">Points</option>
+              <option value="ticks" data-i18n="ticks">Ticks</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label for="cap" data-i18n="cap">Max contracts allowed</label>
+          <select id="cap"></select>
+        </div>
+      </div>
+
+      <div class="step"><div class="step-num">4</div><div class="step-title" data-i18n="s4">Take Profit</div></div>
+      <div class="row">
+        <div class="field">
+          <label for="rr" data-i18n="target">Target</label>
+          <select id="rr"></select>
+          <input id="tpCustom" class="hidden" type="number" inputmode="decimal" min="0" step="any" placeholder="Points">
+        </div>
+        <div class="field">
+          <label for="fee" data-i18n="fee">Fees per contract (round trip)</label>
+          <select id="fee"></select>
+          <input id="feeCustom" class="hidden" type="number" inputmode="decimal" min="0" step="any" placeholder="$ per contract">
+        </div>
+      </div>
+
+      <div class="step"><div class="step-num">5</div><div class="step-title" data-i18n="s5">Prices (optional)</div></div>
+      <div class="row">
+        <div class="field">
+          <span class="label" data-i18n="dir">Direction</span>
+          <div class="seg" role="group">
+            <button type="button" data-dir="long" class="on" data-i18n="long">Long</button>
+            <button type="button" data-dir="short" data-i18n="short">Short</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="entry" data-i18n="entry">Entry price</label>
+          <input id="entry" type="number" inputmode="decimal" step="any" placeholder="e.g. 21450.25">
+        </div>
+      </div>
+      <div class="hint" style="margin-top:8px;" data-i18n="entryHint">Add your entry to get the exact stop and target prices to type into your platform.</div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="card results" aria-live="polite">
+      <div class="hero-num">
+        <div class="label" data-i18n="trade">Trade this many</div>
+        <div class="big" id="outContracts">0</div>
+        <div class="big-sym" id="outSym">MNQ</div>
+        <div class="alt" id="outAlt"></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat loss">
+          <div class="label" data-i18n="actRisk">Actual risk</div>
+          <div class="v" id="outRisk">$0</div>
+          <div class="s" id="outRiskSub"></div>
+        </div>
+        <div class="stat win">
+          <div class="label" data-i18n="tpProfit">Take profit</div>
+          <div class="v" id="outProfit">$0</div>
+          <div class="s" id="outProfitSub"></div>
+        </div>
+        <div class="stat">
+          <div class="label" data-i18n="stopLbl">Stop</div>
+          <div class="v" id="outStop">0 pts</div>
+          <div class="s" id="outStopSub"></div>
+        </div>
+        <div class="stat">
+          <div class="label" data-i18n="tpLbl">Target</div>
+          <div class="v" id="outTp">0 pts</div>
+          <div class="s" id="outTpSub"></div>
+        </div>
+        <div class="stat price" id="priceStop">
+          <div class="label" data-i18n="stopPrice">Stop price</div>
+          <div class="v" id="outStopPx">-</div>
+        </div>
+        <div class="stat price" id="priceTp">
+          <div class="label" data-i18n="tpPrice">Target price</div>
+          <div class="v" id="outTpPx">-</div>
+        </div>
+      </div>
+
+      <div id="alerts"></div>
+
+      <div class="actions">
+        <button type="button" class="btn primary" id="copyBtn" data-i18n="copy">Copy trade plan</button>
+        <button type="button" class="btn" id="resetBtn" data-i18n="reset">Reset</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- REFERENCE TABLE -->
+  <section class="card ref">
+    <div class="ref-head">
+      <div>
+        <div class="eyebrow" data-i18n="refEyebrow">Quick Reference</div>
+        <h2 id="refTitle">MNQ Risk / Reward Reference</h2>
+        <p class="sub" style="margin:0;" id="refSub"></p>
+      </div>
+      <div class="legend">
+        <span><i style="background:rgba(79,209,197,0.35)"></i><span data-i18n="lgOk">Within your risk</span></span>
+        <span><i style="background:var(--bg-raised);border:1px solid var(--mist-deep)"></i><span data-i18n="lgOver">Over your risk</span></span>
+        <span><i style="background:var(--blossom)"></i><span data-i18n="lgPick">Your setup</span></span>
+      </div>
+    </div>
+    <div class="table-wrap"><table id="refTable"></table></div>
+    <div class="foot-note" id="refFoot"></div>
+  </section>
+</main>
+
+<footer data-i18n="footer">For education and planning only. Not financial advice. Values are gross P&amp;L unless fees are added.</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= DATA ================= */
+  // pv = dollars per 1 full point per contract. tick = minimum price move in points.
+  var IDX_ROWS = [1,2,3,4,5,10,15,20,25,30,35,40,45,50,60,70,80,90,100];
+  var ES_ROWS  = [1,2,3,4,5,6,7,8,10,12,15,20,25,30,40,50];
+  var RTY_ROWS = [1,2,3,4,5,6,7,8,10,12,15,20,25,30];
+  var GC_ROWS  = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  var CL_ROWS  = [0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5,0.6,0.75,1,1.25,1.5,2];
+
+  var INSTRUMENTS = [
+    { sym:"MNQ", name:"Micro E-mini Nasdaq-100", size:"micro", pv:2,    tick:0.25, rows:IDX_ROWS, def:20,  pair:"NQ"  },
+    { sym:"MES", name:"Micro E-mini S&P 500",    size:"micro", pv:5,    tick:0.25, rows:ES_ROWS,  def:5,   pair:"ES"  },
+    { sym:"MYM", name:"Micro E-mini Dow",        size:"micro", pv:0.5,  tick:1,    rows:IDX_ROWS, def:30,  pair:"YM"  },
+    { sym:"M2K", name:"Micro E-mini Russell 2000",size:"micro",pv:5,    tick:0.1,  rows:RTY_ROWS, def:3,   pair:"RTY" },
+    { sym:"MGC", name:"Micro Gold",              size:"micro", pv:10,   tick:0.1,  rows:GC_ROWS,  def:5,   pair:"GC"  },
+    { sym:"MCL", name:"Micro WTI Crude Oil",     size:"micro", pv:100,  tick:0.01, rows:CL_ROWS,  def:0.2, pair:"CL"  },
+    { sym:"NQ",  name:"E-mini Nasdaq-100",       size:"mini",  pv:20,   tick:0.25, rows:IDX_ROWS, def:20,  pair:"MNQ" },
+    { sym:"ES",  name:"E-mini S&P 500",          size:"mini",  pv:50,   tick:0.25, rows:ES_ROWS,  def:5,   pair:"MES" },
+    { sym:"YM",  name:"E-mini Dow",              size:"mini",  pv:5,    tick:1,    rows:IDX_ROWS, def:30,  pair:"MYM" },
+    { sym:"RTY", name:"E-mini Russell 2000",     size:"mini",  pv:50,   tick:0.1,  rows:RTY_ROWS, def:3,   pair:"M2K" },
+    { sym:"GC",  name:"Gold (full size)",        size:"mini",  pv:100,  tick:0.1,  rows:GC_ROWS,  def:5,   pair:"MGC" },
+    { sym:"CL",  name:"WTI Crude Oil (full size)",size:"mini", pv:1000, tick:0.01, rows:CL_ROWS,  def:0.2, pair:"MCL" }
+  ];
+  var BY_SYM = {};
+  INSTRUMENTS.forEach(function(i){ BY_SYM[i.sym] = i; });
+
+  // Suggested ranges: 25K and 50K from the GEM reference charts; larger sizes follow the same ~0.5% to 1% rule.
+  var ACCOUNTS = [
+    { v:"25000",  label:"25K",  lo:100, hi:300 },
+    { v:"50000",  label:"50K",  lo:250, hi:500 },
+    { v:"100000", label:"100K", lo:500, hi:1000 },
+    { v:"150000", label:"150K", lo:750, hi:1500 },
+    { v:"300000", label:"300K", lo:1500, hi:3000 },
+    { v:"other",  label:null }
+  ];
+  var RISKS = [50,75,100,150,200,250,300,350,400,500,600,750,1000,1250,1500,2000,2500,3000];
+  var RRS = ["1","1.5","2","2.5","3","4","5"];
+  var CAPS = [0,1,2,3,5,10,15,20,25,30,40,50,60];
+  var FEES = ["0","0.50","1.00","1.50","2.00","2.50","3.00","4.00","5.00"];
+  var COLS = [1,2,3,4,5,6,8,9,10,12,14,15,16,18,20];
+
+  /* ================= I18N ================= */
+  var T = {
+    en:{
+      eyebrow:"Futures Position Sizing", title1:"Risk", title2:"Calculator",
+      tagline:"Pick your instrument, your risk and your stop. Get your contracts, stop price and take profit in seconds.",
+      setup:"Trade Setup", setupSub:"Everything updates live. Your last setup is saved on this device.",
+      s1:"Instrument", s2:"Account & Risk", s3:"Stop Loss", s4:"Take Profit", s5:"Prices (optional)",
+      futures:"Futures contract", acct:"Account size", risk:"Max risk per trade", stopDist:"Stop distance",
+      points:"Points", ticks:"Ticks", cap:"Max contracts allowed", target:"Target", fee:"Fees per contract (round trip)",
+      dir:"Direction", long:"Long", short:"Short", entry:"Entry price",
+      entryHint:"Add your entry to get the exact stop and target prices to type into your platform.",
+      trade:"Trade this many", actRisk:"Actual risk", tpProfit:"Take profit", stopLbl:"Stop", tpLbl:"Target",
+      stopPrice:"Stop price", tpPrice:"Target price", copy:"Copy trade plan", reset:"Reset",
+      refEyebrow:"Quick Reference", lgOk:"Within your risk", lgOver:"Over your risk", lgPick:"Your setup",
+      footer:"For education and planning only. Not financial advice. Values are gross P&L unless fees are added.",
+      micro:"Micro contracts", mini:"Mini / full size contracts", other:"Other / no guide", custom:"Custom...",
+      noLimit:"No limit", upTo:"Up to", contracts:"contracts", contract:"contract", perPt:"per point", perTick:"per tick", tick:"Tick",
+      pts:"pts", tks:"ticks", noFee:"No fees",
+      suggested:"Suggested for {a}: <b>{lo} to {hi}</b> per trade.", above:"Above the suggested range for {a}. Size down or be sure.",
+      below:"Below the suggested range for {a}. Nice and safe.", inRange:"In the suggested range for {a}.",
+      noGuide:"Pick an account size to see the suggested risk range.",
+      budget:"of {r} budget", unused:"{u} unused", perC:"{v} per contract",
+      rr:"{r}R", ticksOf:"{t} ticks",
+      altUp:"Same risk on {s}: <b>{n}</b> {c} ({r} risk)", altNone:"Too small for {s}: 1 contract risks {r}",
+      zero:"Your stop is too wide for this risk. 1 {s} needs at least {m}. Tighten the stop, raise risk, or switch to a micro.",
+      zeroMicro:"Your stop is too wide for this risk. 1 {s} needs at least {m}. Tighten the stop or raise risk.",
+      capped:"Capped at {n} by your max contracts. Full risk would allow {f}.",
+      feeEat:"Fees take {p}% of your profit on this trade.",
+      snap:"Stop rounded to the nearest tick: {v}.",
+      refTitle:"{s} Risk / Reward Reference", refSub:"{n}: Points vs. Contracts vs. Dollar P&L",
+      refFoot:"{s} ({n}) = {pv} per point, per contract. Tick = {t} ({tv}). Values are gross P&L before commissions and fees.",
+      copied:"Trade plan copied. Paste it anywhere.", copyFail:"Could not copy. Select and copy manually.",
+      planLong:"LONG", planShort:"SHORT", planRisk:"Risk", planTp:"TP", planStop:"SL", planEntry:"Entry"
+    },
+    es:{
+      eyebrow:"Tamaño de Posición en Futuros", title1:"Calculadora", title2:"de Riesgo",
+      tagline:"Elige tu instrumento, tu riesgo y tu stop. Obtén tus contratos, precio de stop y take profit en segundos.",
+      setup:"Configura tu Trade", setupSub:"Todo se actualiza al instante. Tu última configuración se guarda en este dispositivo.",
+      s1:"Instrumento", s2:"Cuenta y Riesgo", s3:"Stop Loss", s4:"Take Profit", s5:"Precios (opcional)",
+      futures:"Contrato de futuros", acct:"Tamaño de cuenta", risk:"Riesgo máximo por trade", stopDist:"Distancia del stop",
+      points:"Puntos", ticks:"Ticks", cap:"Máximo de contratos permitidos", target:"Objetivo", fee:"Comisión por contrato (ida y vuelta)",
+      dir:"Dirección", long:"Compra", short:"Venta", entry:"Precio de entrada",
+      entryHint:"Agrega tu entrada para obtener los precios exactos de stop y objetivo para tu plataforma.",
+      trade:"Opera esta cantidad", actRisk:"Riesgo real", tpProfit:"Ganancia objetivo", stopLbl:"Stop", tpLbl:"Objetivo",
+      stopPrice:"Precio de stop", tpPrice:"Precio objetivo", copy:"Copiar plan de trade", reset:"Reiniciar",
+      refEyebrow:"Referencia Rápida", lgOk:"Dentro de tu riesgo", lgOver:"Sobre tu riesgo", lgPick:"Tu configuración",
+      footer:"Solo para educación y planificación. No es asesoría financiera. Valores brutos a menos que agregues comisiones.",
+      micro:"Contratos micro", mini:"Contratos mini / tamaño completo", other:"Otra / sin guía", custom:"Personalizado...",
+      noLimit:"Sin límite", upTo:"Hasta", contracts:"contratos", contract:"contrato", perPt:"por punto", perTick:"por tick", tick:"Tick",
+      pts:"pts", tks:"ticks", noFee:"Sin comisión",
+      suggested:"Sugerido para {a}: <b>{lo} a {hi}</b> por trade.", above:"Por encima del rango sugerido para {a}. Reduce o asegúrate.",
+      below:"Por debajo del rango sugerido para {a}. Bien seguro.", inRange:"Dentro del rango sugerido para {a}.",
+      noGuide:"Elige un tamaño de cuenta para ver el rango de riesgo sugerido.",
+      budget:"de {r} de presupuesto", unused:"{u} sin usar", perC:"{v} por contrato",
+      rr:"{r}R", ticksOf:"{t} ticks",
+      altUp:"Mismo riesgo en {s}: <b>{n}</b> {c} ({r} de riesgo)", altNone:"Muy pequeño para {s}: 1 contrato arriesga {r}",
+      zero:"Tu stop es muy amplio para este riesgo. 1 {s} necesita al menos {m}. Ajusta el stop, sube el riesgo o cambia a un micro.",
+      zeroMicro:"Tu stop es muy amplio para este riesgo. 1 {s} necesita al menos {m}. Ajusta el stop o sube el riesgo.",
+      capped:"Limitado a {n} por tu máximo de contratos. El riesgo completo permitiría {f}.",
+      feeEat:"Las comisiones se llevan el {p}% de tu ganancia en este trade.",
+      snap:"Stop redondeado al tick más cercano: {v}.",
+      refTitle:"Referencia Riesgo / Beneficio {s}", refSub:"{n}: Puntos vs. Contratos vs. P&L en Dólares",
+      refFoot:"{s} ({n}) = {pv} por punto, por contrato. Tick = {t} ({tv}). Valores brutos antes de comisiones.",
+      copied:"Plan copiado. Pégalo donde quieras.", copyFail:"No se pudo copiar. Selecciona y copia manualmente.",
+      planLong:"COMPRA", planShort:"VENTA", planRisk:"Riesgo", planTp:"TP", planStop:"SL", planEntry:"Entrada"
+    }
+  };
+
+  /* ================= STATE ================= */
+  var DEFAULTS = { lang:"en", inst:"MNQ", acct:"50000", risk:"300", riskCustom:"", stop:"20", stopCustom:"", stopUnit:"pts",
+                   rr:"2", tpCustom:"", fee:"0", feeCustom:"", cap:"0", dir:"long", entry:"" };
+  var KEY = "risk-calc-v1";
+  var S = Object.assign({}, DEFAULTS);
+  try { var saved = JSON.parse(localStorage.getItem(KEY) || "null"); if (saved) Object.assign(S, saved); } catch(e){}
+  if (!BY_SYM[S.inst]) S.inst = DEFAULTS.inst;
+  function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch(e){} }
+
+  var $ = function(id){ return document.getElementById(id); };
+  function t(k, vars){
+    var s = (T[S.lang] && T[S.lang][k]) || T.en[k] || k;
+    if (vars) Object.keys(vars).forEach(function(v){ s = s.split("{"+v+"}").join(vars[v]); });
+    return s;
+  }
+
+  /* ================= FORMAT ================= */
+  function decimalsOf(n){ var s = String(n); return s.indexOf(".") < 0 ? 0 : s.split(".")[1].length; }
+  function round(n, d){ var f = Math.pow(10, d); return Math.round(n * f) / f; }
+  function money(v){
+    v = round(v, 2);
+    var neg = v < 0; v = Math.abs(v);
+    var whole = Math.abs(v - Math.round(v)) < 1e-9;
+    var s = v.toLocaleString("en-US", { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+    return (neg ? "-$" : "$") + s;
+  }
+  function pts(v, inst){
+    var d = Math.max(decimalsOf(inst.tick), decimalsOf(round(v, 4)));
+    return round(v, 4).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: Math.min(d, 4) });
+  }
+  function price(v, inst){
+    var d = decimalsOf(inst.tick);
+    return v.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d, useGrouping:false });
+  }
+  function num(v){ var n = parseFloat(v); return isFinite(n) ? n : NaN; }
+
+  /* ================= BUILD CONTROLS ================= */
+  function opt(value, text){ var o = document.createElement("option"); o.value = value; o.textContent = text; return o; }
+
+  function buildInst(){
+    var sel = $("inst"); sel.innerHTML = "";
+    ["micro","mini"].forEach(function(g){
+      var og = document.createElement("optgroup"); og.label = t(g);
+      INSTRUMENTS.filter(function(i){ return i.size === g; }).forEach(function(i){
+        og.appendChild(opt(i.sym, i.sym + "  ·  " + i.name + "  ·  " + money(i.pv) + "/pt"));
+      });
+      sel.appendChild(og);
+    });
+    sel.value = S.inst;
+  }
+  function buildAcct(){
+    var sel = $("acct"); sel.innerHTML = "";
+    ACCOUNTS.forEach(function(a){
+      sel.appendChild(opt(a.v, a.label ? a.label + "  (" + money(a.lo) + " - " + money(a.hi) + ")" : t("other")));
+    });
+    sel.value = S.acct;
+  }
+  function buildRisk(){
+    var sel = $("risk"); sel.innerHTML = "";
+    var a = acctObj();
+    RISKS.forEach(function(r){
+      var mark = a && r >= a.lo && r <= a.hi ? "  ✓" : "";
+      sel.appendChild(opt(String(r), money(r) + mark));
+    });
+    sel.appendChild(opt("custom", t("custom")));
+    sel.value = S.risk;
+    if (sel.value !== S.risk) { S.risk = "custom"; sel.value = "custom"; }
+  }
+  function buildStop(){
+    var inst = BY_SYM[S.inst], sel = $("stop"); sel.innerHTML = "";
+    inst.rows.forEach(function(p){
+      var ticks = round(p / inst.tick, 2);
+      sel.appendChild(opt(String(p), pts(p, inst) + " " + t("pts") + "   (" + ticks + " " + t("tks") + " · " + money(p * inst.pv) + "/" + t("contract") + ")"));
+    });
+    sel.appendChild(opt("custom", t("custom")));
+    sel.value = S.stop;
+    if (sel.value !== S.stop) {
+      if (S.stop === "custom") sel.value = "custom";
+      else { S.stop = String(inst.def); sel.value = S.stop; }
+    }
+  }
+  function buildRR(){
+    var sel = $("rr"); sel.innerHTML = "";
+    RRS.forEach(function(r){ sel.appendChild(opt(r, "1 : " + r + "  (" + r + "R)")); });
+    sel.appendChild(opt("custom", t("custom") + " (" + t("points") + ")"));
+    sel.value = S.rr;
+  }
+  function buildFee(){
+    var sel = $("fee"); sel.innerHTML = "";
+    FEES.forEach(function(f){ sel.appendChild(opt(f, f === "0" ? t("noFee") : money(parseFloat(f)) + " / " + t("contract"))); });
+    sel.appendChild(opt("custom", t("custom")));
+    sel.value = S.fee;
+  }
+  function buildCap(){
+    var sel = $("cap"); sel.innerHTML = "";
+    CAPS.forEach(function(c){ sel.appendChild(opt(String(c), c === 0 ? t("noLimit") : t("upTo") + " " + c + " " + (c === 1 ? t("contract") : t("contracts")))); });
+    sel.value = S.cap;
+  }
+  function buildAll(){ buildInst(); buildAcct(); buildRisk(); buildStop(); buildRR(); buildFee(); buildCap(); syncInputs(); }
+
+  function syncInputs(){
+    $("riskCustom").value = S.riskCustom; $("stopCustom").value = S.stopCustom; $("stopUnit").value = S.stopUnit;
+    $("tpCustom").value = S.tpCustom; $("feeCustom").value = S.feeCustom; $("entry").value = S.entry;
+    document.querySelectorAll(".seg button").forEach(function(b){ b.classList.toggle("on", b.dataset.dir === S.dir); });
+  }
+
+  function applyLang(){
+    document.documentElement.lang = S.lang;
+    document.querySelectorAll("[data-i18n]").forEach(function(el){ el.textContent = t(el.dataset.i18n); });
+    document.querySelectorAll(".lang button").forEach(function(b){ b.classList.toggle("on", b.dataset.lang === S.lang); });
+    $("tpCustom").placeholder = t("points");
+  }
+
+  function acctObj(){ return ACCOUNTS.filter(function(a){ return a.v === S.acct && a.label; })[0] || null; }
+
+  /* ================= CALC ================= */
+  function sizeFor(inst, risk, stopPts, fee){
+    var per = stopPts * inst.pv + fee;
+    if (!(per > 0) || !(risk > 0)) return 0;
+    return Math.floor(risk / per + 1e-9);
+  }
+
+  function calc(){
+    var inst = BY_SYM[S.inst];
+    var risk = S.risk === "custom" ? num(S.riskCustom) : num(S.risk);
+    var fee = S.fee === "custom" ? (num(S.feeCustom) || 0) : num(S.fee);
+    var cap = parseInt(S.cap, 10) || 0;
+
+    var rawStop, snapped = false;
+    if (S.stop === "custom") {
+      var sv = num(S.stopCustom);
+      rawStop = S.stopUnit === "ticks" ? sv * inst.tick : sv;
+    } else rawStop = num(S.stop);
+    var stopPts = isFinite(rawStop) ? round(Math.round(rawStop / inst.tick) * inst.tick, 6) : NaN;
+    if (isFinite(rawStop) && Math.abs(stopPts - rawStop) > 1e-9) snapped = true;
+    if (stopPts <= 0 && rawStop > 0) stopPts = inst.tick;
+
+    var tpPts, rr;
+    if (S.rr === "custom") {
+      var tv = num(S.tpCustom);
+      tpPts = isFinite(tv) ? round(Math.round(tv / inst.tick) * inst.tick, 6) : NaN;
+      rr = stopPts > 0 && isFinite(tpPts) ? tpPts / stopPts : NaN;
+    } else {
+      rr = num(S.rr);
+      tpPts = round(Math.round((stopPts * rr) / inst.tick) * inst.tick, 6);
+    }
+
+    var full = sizeFor(inst, risk, stopPts, fee);
+    var n = cap > 0 ? Math.min(full, cap) : full;
+
+    return { inst:inst, risk:risk, fee:fee, cap:cap, stopPts:stopPts, snapped:snapped, tpPts:tpPts, rr:rr, full:full, n:n,
+             lossTotal: n * (stopPts * inst.pv + fee),
+             profitTotal: n * (tpPts * inst.pv - fee),
+             grossProfit: n * tpPts * inst.pv };
+  }
+
+  /* ================= RENDER ================= */
+  function render(){
+    var r = calc(), inst = r.inst;
+    var ok = isFinite(r.stopPts) && r.stopPts > 0 && isFinite(r.risk) && r.risk > 0;
+
+    // UI toggles
+    $("riskCustom").classList.toggle("hidden", S.risk !== "custom");
+    $("stopCustomWrap").classList.toggle("hidden", S.stop !== "custom");
+    $("tpCustom").classList.toggle("hidden", S.rr !== "custom");
+    $("feeCustom").classList.toggle("hidden", S.fee !== "custom");
+
+    // instrument meta pills
+    var tickVal = inst.tick * inst.pv;
+    $("instMeta").innerHTML =
+      '<span class="pill"><b>' + money(inst.pv) + '</b> ' + t("perPt") + '</span>' +
+      '<span class="pill">' + t("tick") + ' <b>' + inst.tick + '</b> = <b>' + money(tickVal) + '</b></span>' +
+      '<span class="pill">' + (inst.size === "micro" ? "Micro" : "Mini") + ' · 10 ' + (inst.size === "micro" ? inst.sym + " = 1 " + inst.pair : inst.pair + " = 1 " + inst.sym) + '</span>';
+
+    // risk hint
+    var a = acctObj(), hint = $("riskHint");
+    hint.classList.remove("warn");
+    if (!a) hint.innerHTML = t("noGuide");
+    else {
+      var base = t("suggested", { a:a.label, lo:money(a.lo), hi:money(a.hi) });
+      if (isFinite(r.risk) && r.risk > a.hi) { hint.innerHTML = base + " " + t("above", { a:a.label }); hint.classList.add("warn"); }
+      else if (isFinite(r.risk) && r.risk < a.lo) hint.innerHTML = base + " " + t("below", { a:a.label });
+      else hint.innerHTML = base;
+    }
+
+    // outputs
+    $("outContracts").textContent = ok ? r.n : "-";
+    $("outSym").textContent = inst.sym;
+    $("outRisk").textContent = ok ? money(r.lossTotal) : "-";
+    $("outRiskSub").textContent = ok ? t("budget", { r:money(r.risk) }) + " · " + t("unused", { u:money(Math.max(0, r.risk - r.lossTotal)) }) : "";
+    $("outProfit").textContent = ok && isFinite(r.tpPts) ? money(r.profitTotal) : "-";
+    $("outProfitSub").textContent = ok && isFinite(r.rr) ? "1 : " + round(r.rr, 2) + "  ·  " + t("perC", { v:money(r.tpPts * inst.pv) }) : "";
+    $("outStop").textContent = ok ? pts(r.stopPts, inst) + " " + t("pts") : "-";
+    $("outStopSub").textContent = ok ? t("ticksOf", { t:round(r.stopPts / inst.tick, 2) }) + " · " + t("perC", { v:money(r.stopPts * inst.pv) }) : "";
+    $("outTp").textContent = ok && isFinite(r.tpPts) ? pts(r.tpPts, inst) + " " + t("pts") : "-";
+    $("outTpSub").textContent = ok && isFinite(r.tpPts) ? t("ticksOf", { t:round(r.tpPts / inst.tick, 2) }) : "";
+
+    // prices
+    var entry = num(S.entry), hasEntry = isFinite(entry) && entry > 0;
+    $("priceStop").classList.toggle("hidden", !hasEntry);
+    $("priceTp").classList.toggle("hidden", !hasEntry);
+    if (hasEntry && ok) {
+      var sgn = S.dir === "long" ? 1 : -1;
+      $("outStopPx").textContent = price(entry - sgn * r.stopPts, inst);
+      $("outTpPx").textContent = isFinite(r.tpPts) ? price(entry + sgn * r.tpPts, inst) : "-";
+    }
+
+    // micro / mini alternative
+    var pair = BY_SYM[inst.pair], alt = $("outAlt");
+    if (ok && pair) {
+      var pn = sizeFor(pair, r.risk, r.stopPts, r.fee);
+      if (r.cap > 0) pn = Math.min(pn, r.cap);
+      alt.innerHTML = pn > 0
+        ? t("altUp", { s:pair.sym, n:pn, c:pn === 1 ? t("contract") : t("contracts"), r:money(pn * (r.stopPts * pair.pv + r.fee)) })
+        : t("altNone", { s:pair.sym, r:money(r.stopPts * pair.pv + r.fee) });
+    } else alt.innerHTML = "";
+
+    // alerts
+    var al = [];
+    if (ok && r.full === 0) {
+      var minRisk = money(r.stopPts * inst.pv + r.fee);
+      al.push('<div class="alert bad">' + t(inst.size === "micro" ? "zeroMicro" : "zero", { s:inst.sym, m:minRisk }) + '</div>');
+    }
+    if (ok && r.cap > 0 && r.full > r.cap) al.push('<div class="alert">' + t("capped", { n:r.cap, f:r.full }) + '</div>');
+    if (ok && r.snapped) al.push('<div class="alert">' + t("snap", { v:pts(r.stopPts, inst) + " " + t("pts") }) + '</div>');
+    if (ok && r.n > 0 && r.fee > 0 && r.grossProfit > 0) {
+      var pct = Math.round((r.n * r.fee) / r.grossProfit * 100);
+      if (pct >= 10) al.push('<div class="alert">' + t("feeEat", { p:pct }) + '</div>');
+    }
+    $("alerts").innerHTML = al.join("");
+
+    renderTable(r);
+    save();
+  }
+
+  function renderTable(r){
+    var inst = r.inst;
+    $("refTitle").textContent = t("refTitle", { s:inst.sym });
+    $("refSub").textContent = t("refSub", { n:inst.name });
+    $("refFoot").textContent = t("refFoot", { s:inst.sym, n:inst.name, pv:money(inst.pv), t:inst.tick, tv:money(inst.tick * inst.pv) });
+
+    var rows = inst.rows.slice();
+    var selRow = isFinite(r.stopPts) ? r.stopPts : null;
+    var html = "<thead><tr><th>" + inst.sym + "</th>";
+    COLS.forEach(function(c){ html += '<th class="' + (c === r.n ? "colsel" : "") + '">' + c + " " + inst.sym + "</th>"; });
+    html += "</tr></thead><tbody>";
+    rows.forEach(function(p){
+      var isSel = selRow !== null && Math.abs(p - selRow) < 1e-9;
+      html += '<tr class="' + (isSel ? "sel" : "") + '"><th>' + pts(p, inst) + " " + t("pts") + "</th>";
+      COLS.forEach(function(c){
+        var v = p * c * inst.pv;
+        var within = isFinite(r.risk) && (p * inst.pv + r.fee) * c <= r.risk + 1e-9;
+        var cls = [within ? "ok" : "over"];
+        if (c === r.n) cls.push("colsel");
+        if (isSel && c === r.n) cls.push("pick");
+        html += '<td class="' + cls.join(" ") + '">' + money(v) + "</td>";
+      });
+      html += "</tr>";
+    });
+    html += "</tbody>";
+    $("refTable").innerHTML = html;
+  }
+
+  /* ================= EVENTS ================= */
+  function bindSelect(id, key, after){
+    $(id).addEventListener("change", function(e){ S[key] = e.target.value; if (after) after(); render(); });
+  }
+  function bindInput(id, key){
+    $(id).addEventListener("input", function(e){ S[key] = e.target.value; render(); });
+  }
+
+  bindSelect("inst", "inst", function(){
+    var inst = BY_SYM[S.inst];
+    if (S.stop !== "custom" && inst.rows.map(String).indexOf(S.stop) < 0) S.stop = String(inst.def);
+    buildStop();
+  });
+  bindSelect("acct", "acct", function(){
+    var a = acctObj();
+    if (a && S.risk !== "custom") {
+      var cur = num(S.risk);
+      if (cur < a.lo || cur > a.hi) S.risk = String(a.hi);
+    }
+    buildRisk();
+  });
+  bindSelect("risk", "risk", function(){ if (S.risk === "custom") setTimeout(function(){ $("riskCustom").focus(); }, 0); });
+  bindSelect("stop", "stop", function(){ if (S.stop === "custom") setTimeout(function(){ $("stopCustom").focus(); }, 0); });
+  bindSelect("stopUnit", "stopUnit");
+  bindSelect("rr", "rr", function(){ if (S.rr === "custom") setTimeout(function(){ $("tpCustom").focus(); }, 0); });
+  bindSelect("fee", "fee", function(){ if (S.fee === "custom") setTimeout(function(){ $("feeCustom").focus(); }, 0); });
+  bindSelect("cap", "cap");
+  bindInput("riskCustom", "riskCustom");
+  bindInput("stopCustom", "stopCustom");
+  bindInput("tpCustom", "tpCustom");
+  bindInput("feeCustom", "feeCustom");
+  bindInput("entry", "entry");
+
+  document.querySelectorAll(".seg button").forEach(function(b){
+    b.addEventListener("click", function(){ S.dir = b.dataset.dir; syncInputs(); render(); });
+  });
+  document.querySelectorAll(".lang button").forEach(function(b){
+    b.addEventListener("click", function(){ S.lang = b.dataset.lang; applyLang(); buildAll(); render(); });
+  });
+  $("resetBtn").addEventListener("click", function(){
+    var lang = S.lang; S = Object.assign({}, DEFAULTS, { lang:lang }); applyLang(); buildAll(); render();
+  });
+
+  function toast(msg){
+    var el = $("toast"); el.textContent = msg; el.classList.add("show");
+    clearTimeout(toast._t); toast._t = setTimeout(function(){ el.classList.remove("show"); }, 2200);
+  }
+  $("copyBtn").addEventListener("click", function(){
+    var r = calc(), inst = r.inst, entry = num(S.entry), hasEntry = isFinite(entry) && entry > 0, sgn = S.dir === "long" ? 1 : -1;
+    var lines = [
+      inst.sym + " " + (S.dir === "long" ? t("planLong") : t("planShort")) + " | " + r.n + " " + (r.n === 1 ? t("contract") : t("contracts")),
+      t("planStop") + ": " + pts(r.stopPts, inst) + " " + t("pts") + (hasEntry ? " @ " + price(entry - sgn * r.stopPts, inst) : "") + " | " + t("planRisk") + ": " + money(r.lossTotal),
+      t("planTp") + ": " + pts(r.tpPts, inst) + " " + t("pts") + (hasEntry ? " @ " + price(entry + sgn * r.tpPts, inst) : "") + " | +" + money(r.profitTotal) + " (1:" + round(r.rr, 2) + ")"
+    ];
+    if (hasEntry) lines.splice(1, 0, t("planEntry") + ": " + price(entry, inst));
+    var text = lines.join("\n");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ toast(t("copied")); }, function(){ toast(t("copyFail")); });
+    } else toast(t("copyFail"));
+  });
+
+  /* ================= INIT ================= */
+  applyLang();
+  buildAll();
+  render();
+})();
+</script>
+</body>
+</html>
